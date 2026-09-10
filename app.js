@@ -22,9 +22,26 @@ function answer(reveal=false){if(answered)return;const value=normalize($('respon
 $('form').onsubmit=e=>{e.preventDefault();answer();};$('next').onclick=()=>{next();$('response').focus();};document.querySelectorAll('input[name="mode"]').forEach(r=>r.onchange=()=>{mode=r.value;bag=[];next();$('response').focus();});$('reset').onclick=()=>{hits=0;total=0;bag=[];score();next();$('response').focus();};
 
 function updateArea(){const course=area==='kanji';$('original-modes').hidden=course;$('level-controls').hidden=!course;$('tab-practice').setAttribute('aria-selected',String(!course));$('tab-kanji').setAttribute('aria-selected',String(course));$('tab-practice').tabIndex=course?-1:0;$('tab-kanji').tabIndex=course?0:-1;$('study-panel').setAttribute('aria-labelledby',course?'tab-kanji':'tab-practice');$('level-description').textContent=level==='all'?'Revisão completa: 150 kanji dos cinco níveis.':'30 kanji · '+kanjiLevels[Number(level)-1].description;$('footnote').textContent=course?'Os acertos são separados por nível nesta sessão. Os significados podem variar conforme a palavra; basta uma das respostas aceitas.':'Kana: os 46 caracteres básicos de cada alfabeto. Kanji: 30 significados iniciais em português.';}
-function changeArea(target){if(area===target)return;saveSession();area=target;updateArea();restoreSession();}
+function changeArea(target){
+ const cheat=target==='cheatsheet';$('study-panel').hidden=cheat;$('cheatsheet-panel').hidden=!cheat;
+ if(!cheat&&area!==target){saveSession();area=target;updateArea();restoreSession();}
+ for(const name of ['practice','kanji','cheatsheet']){const selected=name===target;$('tab-'+name).setAttribute('aria-selected',String(selected));$('tab-'+name).tabIndex=selected?0:-1;}
+}
 $('tab-practice').onclick=()=>changeArea('practice');$('tab-kanji').onclick=()=>changeArea('kanji');
-['tab-practice','tab-kanji'].forEach((id,i)=>$(id).onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const target=e.key==='Home'?0:e.key==='End'?1:1-i;changeArea(target?'kanji':'practice');$(target?'tab-kanji':'tab-practice').focus();});
+$('tab-cheatsheet').onclick=()=>changeArea('cheatsheet');
+const tabAreas=['practice','kanji','cheatsheet'];
+tabAreas.forEach((name,i)=>$('tab-'+name).onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const index=e.key==='Home'?0:e.key==='End'?2:(i+(e.key==='ArrowRight'?1:2))%3;changeArea(tabAreas[index]);$('tab-'+tabAreas[index]).focus();});
 $('level').onchange=()=>{saveSession();level=$('level').value;updateArea();restoreSession();$('response').focus();};
 $('reveal').onclick=()=>answer(true);
 updateArea();next();
+
+function renderCheatsheet(){
+ const escape=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const cards=entries=>entries.map(e=>'<div class="cheat-card"><dt lang="ja">'+escape(e.char)+'</dt><dd>'+escape(e.answers.join(' / '))+'</dd></div>').join('');
+ let html='<section id="cheat-hiragana" class="cheat-group"><h3>Hiragana <span>46 caracteres</span></h3><p>Leituras em romaji. As alternativas também são aceitas no treino.</p><dl class="kana-grid">'+cards(hiragana)+'</dl></section>';
+ html+='<section id="cheat-katakana" class="cheat-group"><h3>Katakana <span>46 caracteres</span></h3><p>As mesmas leituras, com outra forma de escrever.</p><dl class="kana-grid">'+cards(katakana)+'</dl></section>';
+ html+='<section id="cheat-kanji" class="cheat-group"><h3>Kanji <span>150 caracteres</span></h3><p>Aqui estão os significados em português aceitos no jogo. Kanji podem ter várias leituras em japonês, conforme a palavra.</p>';
+ kanjiLevels.forEach((l,i)=>{html+='<h4>Nível '+(i+1)+' · '+escape(l.name)+'</h4><dl class="kanji-grid">'+cards(l.entries)+'</dl>';});
+ $('cheatsheet-content').innerHTML=html+'</section>';
+}
+renderCheatsheet();
